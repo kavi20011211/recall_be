@@ -7,7 +7,7 @@ export const startReminderJob = () => {
     "[reminder-service] Cron job registered: runs at 0 9 * * * (daily 9 AM)",
   );
 
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("0 9 * * *", async () => {
     const tickAt = new Date().toISOString();
     console.info(
       `[reminder-service] Cron tick at ${tickAt} — querying due reminders`,
