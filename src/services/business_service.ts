@@ -36,8 +36,27 @@ export const createMerchant = async (req: Request, res: Response) => {
       merchantId: result.insertId,
       token: token,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create Merchant Error:", error);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      // Merchant already registered — return a fresh token so the device can re-authenticate
+      try {
+        const [rows]: any = await db.execute(
+          `SELECT merchant_id, owner_phone FROM merchants WHERE merchant_id = ? LIMIT 1`,
+          [req.body.merchant_id]
+        );
+        if (rows.length > 0) {
+          const existing = rows[0];
+          const token = generateToken({ id: existing.merchant_id, owner_phone: existing.owner_phone });
+          return res.status(200).json({
+            success: true,
+            message: "Merchant already registered",
+            token,
+          });
+        }
+      } catch (_) {}
+    }
 
     return res.status(500).json({
       success: false,

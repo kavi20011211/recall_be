@@ -3,8 +3,15 @@ import { db } from "../config/db_config";
 import { smsQueue } from "../queue/sms_queue";
 
 export const startReminderJob = () => {
-  cron.schedule("0 9 * * *", async () => {
-    console.info("Checking reminders...");
+  console.info(
+    "[reminder-service] Cron job registered: runs at 0 9 * * * (daily 9 AM)",
+  );
+
+  cron.schedule("* * * * *", async () => {
+    const tickAt = new Date().toISOString();
+    console.info(
+      `[reminder-service] Cron tick at ${tickAt} — querying due reminders`,
+    );
 
     try {
       const query = `
@@ -22,9 +29,19 @@ export const startReminderJob = () => {
       `;
 
       const [rows]: any = await db.execute(query);
+      console.info(
+        `[reminder-service] Query returned ${rows.length} due reminder(s)`,
+      );
+
+      if (rows.length === 0) {
+        console.info(
+          "[reminder-service] No reminders due today, skipping queue",
+        );
+        return;
+      }
 
       for (const customer of rows) {
-        await smsQueue.add(
+        const job = await smsQueue.add(
           "send-reminder",
           {
             visit_id: customer.visit_id,
@@ -42,11 +59,16 @@ export const startReminderJob = () => {
             removeOnFail: false,
           },
         );
+        console.info(
+          `[reminder-service] Enqueued job ${job.id} for visit_id=${customer.visit_id} phone=${customer.phone_number}`,
+        );
       }
 
-      console.info(`${rows.length} jobs added to queue`);
+      console.info(
+        `[reminder-service] Done — ${rows.length} job(s) added to sms-reminders queue`,
+      );
     } catch (error) {
-      console.error(error);
+      console.error("[reminder-service] Cron error:", error);
     }
   });
 };
