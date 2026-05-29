@@ -5,7 +5,7 @@ import { generateToken } from "../config/jwt_token_config";
 // Create Merchant
 export const createMerchant = async (req: Request, res: Response) => {
   try {
-    const { owner_phone, merchant_id, business_name } = req.body;
+    const { owner_phone, merchant_id, business_name, business_phone } = req.body;
 
     if (!owner_phone || !merchant_id || !business_name) {
       return res.status(400).json({
@@ -15,14 +15,15 @@ export const createMerchant = async (req: Request, res: Response) => {
     }
 
     const query = `
-      INSERT INTO merchants (owner_phone, merchant_id, business_name)
-      VALUES (?, ?, ?)
+      INSERT INTO merchants (owner_phone, merchant_id, business_name, business_phone)
+      VALUES (?, ?, ?, ?)
     `;
 
     const [result]: any = await db.execute(query, [
       owner_phone,
       merchant_id,
       business_name,
+      business_phone || null,
     ]);
 
     const token = generateToken({
