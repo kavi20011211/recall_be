@@ -45,12 +45,18 @@ export const createCustomer = async (req: Request, res: Response) => {
       VALUES (?, ?, ?, ?, ?)
     `;
 
+    // Normalise ISO 8601 "Z" suffix → MySQL DATETIME "YYYY-MM-DD HH:MM:SS"
+    const mysqlTimestamp = consent_timestamp
+      .replace("T", " ")
+      .replace("Z", "")
+      .substring(0, 19);
+
     const [result]: any = await db.execute(insertQuery, [
       merchant_id,
       phone_number,
       first_name || null,
       false,
-      consent_timestamp,
+      mysqlTimestamp,
     ]);
 
     return res.status(201).json({

@@ -3,24 +3,29 @@ import { db } from "../config/db_config";
 import { weeklyDigestQueue } from "../queue/weekly_digest_queue";
 
 export const startWeeklyDigestJob = () => {
+  console.info("[weekly-digest-service] Cron job registered: runs at 0 8 * * MON (Monday 8 AM America/Toronto)");
+
   cron.schedule(
     "0 8 * * MON",
     async () => {
-      try {
-        console.info("Running weekly digest job");
+      const tickAt = new Date().toISOString();
+      console.info(`[weekly-digest-service] Cron tick at ${tickAt} — querying merchants`);
 
+      try {
         const [rows]: any = await db.execute(`
           SELECT *
           FROM weekly_digest_data
         `);
 
         if (!rows || rows.length === 0) {
-          console.info("No merchants found for weekly digest");
+          console.info("[weekly-digest-service] No merchants found in weekly_digest_data, skipping queue");
           return;
         }
 
+        console.info(`[weekly-digest-service] Found ${rows.length} merchant(s) to notify`);
+
         for (const merchant of rows) {
-          await weeklyDigestQueue.add(
+          const job = await weeklyDigestQueue.add(
             "weekly-report",
             {
               merchant_id: merchant.merchant_id,
@@ -43,11 +48,12 @@ export const startWeeklyDigestJob = () => {
               removeOnComplete: true,
             },
           );
+          console.info(`[weekly-digest-service] Enqueued job ${job.id} for merchant_id=${merchant.merchant_id} phone=${merchant.owner_phone}`);
         }
 
-        console.info(`Queued ${rows.length} weekly digest jobs`);
+        console.info(`[weekly-digest-service] Done — ${rows.length} job(s) added to weekly-digest queue`);
       } catch (error) {
-        console.error("Weekly digest cron failed:", error);
+        console.error("[weekly-digest-service] Cron error:", error);
       }
     },
     {
